@@ -16,8 +16,6 @@
     />
     <!-- Importando Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Importando jsPDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
       body {
         margin: 0;
@@ -59,7 +57,7 @@
       }
       .chart-container {
         margin-top: 20px;
-        height: 200px;
+        height: 400px;
         position: sticky;
         top: 70px; /* Justo debajo del header */
       }
@@ -83,6 +81,9 @@
       .expense-actions button {
         margin-left: 10px;
       }
+      .month-selector {
+        margin-bottom: 20px;
+      }
       @media (max-width: 600px) {
         header img {
           width: 80px;
@@ -95,8 +96,11 @@
   </head>
   <body>
     <header>
-      <img src="logo.png" alt="Logo Empresarial" />
-      <h5>MotiControl de Gastos</h5>
+      <img
+        src="https://via.placeholder.com/100x50?text=Logo"
+        alt="Logo Empresarial"
+      />
+      <h1>Control de Gastos</h1>
     </header>
 
     <div class="container">
@@ -111,17 +115,27 @@
           step="0.01"
         />
       </div>
+      <div class="input-field">
+        <input type="month" id="expenseDate" placeholder="Fecha" />
+      </div>
       <div class="centered-buttons">
         <a
           class="waves-effect waves-light btn-large blue"
           onclick="addExpense()"
           >Añadir Gasto</a
         >
-        <a
-          class="waves-effect waves-light btn-large green"
-          onclick="generatePDF()"
-          >PDF</a
+      </div>
+
+      <div class="month-selector">
+        <label>Selecciona el mes</label>
+        <select
+          id="monthSelect"
+          class="browser-default"
+          onchange="updateExpenseList()"
         >
+          <option value="">Todos</option>
+          <!-- Opciones de meses se añaden dinámicamente -->
+        </select>
       </div>
 
       <div class="chart-container">
@@ -132,8 +146,6 @@
     </div>
 
     <script>
-      const { jsPDF } = window.jspdf;
-
       const ctx = document.getElementById("expensesChart").getContext("2d");
 
       // Generador de degradados
@@ -226,21 +238,25 @@
         const amount = parseFloat(
           document.getElementById("expenseAmount").value.trim()
         );
+        const date = document.getElementById("expenseDate").value;
 
-        if (name && !isNaN(amount) && amount > 0) {
+        if (name && !isNaN(amount) && amount > 0 && date) {
           if (currentEditIndex !== null) {
-            expenses[currentEditIndex] = { name, amount };
+            expenses[currentEditIndex] = { name, amount, date };
             currentEditIndex = null;
           } else {
-            expenses.push({ name, amount });
+            expenses.push({ name, amount, date });
           }
           saveExpenses();
           updateChart();
           updateExpenseList();
           document.getElementById("expenseName").value = "";
           document.getElementById("expenseAmount").value = "";
+          document.getElementById("expenseDate").value = "";
         } else {
-          M.toast({ html: "Por favor, ingresa un nombre y un monto válido." });
+          M.toast({
+            html: "Por favor, ingresa todos los campos correctamente.",
+          });
         }
       }
 
@@ -249,8 +265,13 @@
       }
 
       function updateChart() {
-        const labels = expenses.map((expense) => expense.name);
-        const data = expenses.map((expense) => expense.amount);
+        const selectedMonth = document.getElementById("monthSelect").value;
+        const filteredExpenses = selectedMonth
+          ? expenses.filter((expense) => expense.date.startsWith(selectedMonth))
+          : expenses;
+
+        const labels = filteredExpenses.map((expense) => expense.name);
+        const data = filteredExpenses.map((expense) => expense.amount);
 
         expensesChart.data.labels = labels;
         expensesChart.data.datasets[0].data = data;
@@ -258,17 +279,22 @@
       }
 
       function updateExpenseList() {
+        const selectedMonth = document.getElementById("monthSelect").value;
+        const filteredExpenses = selectedMonth
+          ? expenses.filter((expense) => expense.date.startsWith(selectedMonth))
+          : expenses;
+
         const expenseList = document.getElementById("expenseList");
         expenseList.innerHTML = "";
 
-        expenses.forEach((expense, index) => {
+        filteredExpenses.forEach((expense, index) => {
           const expenseItem = document.createElement("div");
           expenseItem.className = "expense-item";
 
           const expenseText = document.createElement("span");
-          expenseText.textContent = `${expense.name}: €${expense.amount.toFixed(
+          expenseText.textContent = `${expense.name}: $${expense.amount.toFixed(
             2
-          )}`;
+          )} (${expense.date})`;
 
           const expenseActions = document.createElement("div");
           expenseActions.className = "expense-actions";
@@ -296,6 +322,7 @@
       function editExpense(index) {
         document.getElementById("expenseName").value = expenses[index].name;
         document.getElementById("expenseAmount").value = expenses[index].amount;
+        document.getElementById("expenseDate").value = expenses[index].date;
         currentEditIndex = index;
       }
 
@@ -306,39 +333,28 @@
         updateExpenseList();
       }
 
-      function generatePDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        doc.setFontSize(16);
-        doc.text("Informe de Gastos", 14, 20);
-        doc.setFontSize(12);
-
-        if (expenses.length === 0) {
-          doc.text("No hay gastos registrados.", 14, 30);
-        } else {
-          let y = 30;
-          expenses.forEach((expense) => {
-            doc.text(`${expense.name}: $${expense.amount.toFixed(2)}`, 14, y);
-            y += 10;
-          });
-          doc.text(
-            `Total: $${expenses
-              .reduce((acc, expense) => acc + expense.amount, 0)
-              .toFixed(2)}`,
-            14,
-            y + 10
+      function populateMonthSelect() {
+        const monthSelect = document.getElementById("monthSelect");
+        const uniqueMonths = [
+          ...new Set(expenses.map((expense) => expense.date.substr(0, 7))),
+        ];
+        uniqueMonths.forEach((month) => {
+          const option = document.createElement("option");
+          option.value = month;
+          option.textContent = new Date(month + "-01").toLocaleString(
+            "default",
+            { month: "long", year: "numeric" }
           );
-        }
-
-        doc.save("informe_de_gastos.pdf");
+          monthSelect.appendChild(option);
+        });
       }
 
-      // Inicializar Materialize CSS
+      // Inicializar Materialize CSS y cargar datos
       document.addEventListener("DOMContentLoaded", function () {
         M.AutoInit();
         updateChart();
         updateExpenseList();
+        populateMonthSelect();
       });
     </script>
 
