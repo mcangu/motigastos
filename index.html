@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MotiControl de Gastos</title>
+    <title>Control de Gastos</title>
     <!-- Importando Materialize CSS -->
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
@@ -16,6 +16,8 @@
     />
     <!-- Importando Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Importando jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
       body {
         margin: 0;
@@ -110,8 +112,15 @@
         />
       </div>
       <div class="centered-buttons">
-        <a class="waves-effect waves-light btn btn-info" onclick="addExpense()"
+        <a
+          class="waves-effect waves-light btn-large blue"
+          onclick="addExpense()"
           >Añadir Gasto</a
+        >
+        <a
+          class="waves-effect waves-light btn-large green"
+          onclick="generatePDF()"
+          >Generar Informe PDF</a
         >
       </div>
 
@@ -123,6 +132,8 @@
     </div>
 
     <script>
+      const { jsPDF } = window.jspdf;
+
       const ctx = document.getElementById("expensesChart").getContext("2d");
 
       // Generador de degradados
@@ -255,7 +266,7 @@
           expenseItem.className = "expense-item";
 
           const expenseText = document.createElement("span");
-          expenseText.textContent = `${expense.name}: $${expense.amount.toFixed(
+          expenseText.textContent = `${expense.name}: €${expense.amount.toFixed(
             2
           )}`;
 
@@ -293,6 +304,34 @@
         saveExpenses();
         updateChart();
         updateExpenseList();
+      }
+
+      function generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.setFontSize(16);
+        doc.text("Informe de Gastos", 14, 20);
+        doc.setFontSize(12);
+
+        if (expenses.length === 0) {
+          doc.text("No hay gastos registrados.", 14, 30);
+        } else {
+          let y = 30;
+          expenses.forEach((expense) => {
+            doc.text(`${expense.name}: $${expense.amount.toFixed(2)}`, 14, y);
+            y += 10;
+          });
+          doc.text(
+            `Total: $${expenses
+              .reduce((acc, expense) => acc + expense.amount, 0)
+              .toFixed(2)}`,
+            14,
+            y + 10
+          );
+        }
+
+        doc.save("informe_de_gastos.pdf");
       }
 
       // Inicializar Materialize CSS
